@@ -10,52 +10,80 @@ void main() {
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
-  
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'App2Market',
       theme: ThemeData.dark(),
-      home: const PantallaPrincipal(),
+      home: const PantallaConBNB(),
       debugShowCheckedModeBanner: false,
     );
   }
 }
 
-class PantallaPrincipal extends StatefulWidget {
-  const PantallaPrincipal({super.key});
-  
+// Nueva clase principal con BNB
+class PantallaConBNB extends StatefulWidget {
+  const PantallaConBNB({super.key});
+
   @override
-  State<PantallaPrincipal> createState() => _PantallaPrincipalState();
+  State<PantallaConBNB> createState() => _PantallaConBNBState();
 }
 
-class _PantallaPrincipalState extends State<PantallaPrincipal> {
-  final List<Map<String, dynamic>> productos = [];
+class _PantallaConBNBState extends State<PantallaConBNB> {
+  int _paginaActual = 0;
 
-  // Controladores para el diálogo emergente
+  final List<Widget> _pantallas = [
+    const PantallaProductos(),
+    const PantallaGrafica(),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: _pantallas[_paginaActual],
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _paginaActual,
+        onTap: (index) => setState(() => _paginaActual = index),
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.shopping_cart), label: 'Productos'),
+          BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: 'Gráfica'),
+        ],
+      ),
+    );
+  }
+}
+
+// Pantalla principal con productos y presupuesto
+class PantallaProductos extends StatefulWidget {
+  const PantallaProductos({super.key});
+
+  @override
+  State<PantallaProductos> createState() => _PantallaProductosState();
+}
+
+class _PantallaProductosState extends State<PantallaProductos> {
+  final List<Map<String, dynamic>> productos = [];
   final TextEditingController _nombreController = TextEditingController();
   final TextEditingController _precioController = TextEditingController();
-
-  // Variable para presupuesto restante
   double presupuestoRestante = 0;
 
   @override
   void initState() {
     super.initState();
-    _cargarPresupuesto();
+    cargarPresupuesto();
   }
 
-  Future<void> _cargarPresupuesto() async {
-    final presupuesto = await DatabaseHelper.instance.obtenerPresupuesto();
+  Future<void> cargarPresupuesto() async {
+    final restante = await DatabaseHelper.instance.obtenerPresupuesto();
     setState(() {
-      presupuestoRestante = presupuesto;
+      presupuestoRestante = restante;
     });
   }
 
   void agregarProductoDialog() {
     _nombreController.clear();
     _precioController.clear();
-
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
@@ -63,15 +91,8 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(
-              controller: _nombreController,
-              decoration: const InputDecoration(labelText: 'Nombre'),
-            ),
-            TextField(
-              controller: _precioController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Precio'),
-            ),
+            TextField(controller: _nombreController, decoration: const InputDecoration(labelText: 'Nombre')),
+            TextField(controller: _precioController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Precio')),
           ],
         ),
         actions: [
@@ -84,17 +105,11 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
                   productos.add({'nombre': nombre, 'precio': precio});
                 });
                 Navigator.pop(context);
-                _actualizarPresupuestoRestante();
-              } else {
-                // Podrías mostrar un error si quieres
               }
             },
             child: const Text('Agregar'),
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
         ],
       ),
     );
@@ -104,14 +119,12 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
     setState(() {
       productos.removeAt(index);
     });
-    _actualizarPresupuestoRestante();
   }
 
   void modificarProducto(int index) {
     final producto = productos[index];
     _nombreController.text = producto['nombre'];
     _precioController.text = producto['precio'].toString();
-
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
@@ -133,15 +146,11 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
                   productos[index] = {'nombre': nombre, 'precio': precio};
                 });
                 Navigator.pop(context);
-                _actualizarPresupuestoRestante();
               }
             },
             child: const Text('Guardar'),
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
         ],
       ),
     );
@@ -155,17 +164,13 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
     return productos.map((p) => p['nombre'] as String).toList();
   }
 
-  // Actualiza el presupuesto restante mostrando la diferencia entre el presupuesto guardado y la suma actual de productos
-  void _actualizarPresupuestoRestante() async {
-    final presupuestoOriginal = await DatabaseHelper.instance.obtenerPresupuesto();
-    setState(() {
-      presupuestoRestante = presupuestoOriginal - calcularTotal();
-      if (presupuestoRestante < 0) presupuestoRestante = 0;
-    });
+  Color obtenerColorPresupuesto(double restante) {
+    return restante >= 0 ? Colors.green : Colors.red;
   }
 
   @override
   Widget build(BuildContext context) {
+    final restanteActual = presupuestoRestante - calcularTotal();
     return Scaffold(
       appBar: AppBar(
         title: const Text('App2Market'),
@@ -174,20 +179,15 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
             icon: const Icon(Icons.history),
             tooltip: 'Historial de compras',
             onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const PantallaHistorial()),
-              );
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const PantallaHistorial()));
             },
           ),
           IconButton(
             icon: const Icon(Icons.account_balance_wallet),
             tooltip: 'Presupuesto',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const PantallaPresupuesto()),
-              );
+            onPressed: () async {
+              await Navigator.push(context, MaterialPageRoute(builder: (_) => const PantallaPresupuesto()));
+              cargarPresupuesto();
             },
           ),
         ],
@@ -196,12 +196,6 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
         padding: const EdgeInsets.all(12.0),
         child: Column(
           children: [
-            // Presupuesto restante visible y actualizado
-            Text(
-              'Presupuesto restante: \$${presupuestoRestante.toStringAsFixed(2)}',
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.greenAccent),
-            ),
-            const SizedBox(height: 12),
             const Text('Lista de productos:', style: TextStyle(fontSize: 16)),
             Expanded(
               child: ListView.builder(
@@ -222,9 +216,13 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
               ),
             ),
             const SizedBox(height: 8),
+            Text('Total: \$${calcularTotal().toStringAsFixed(2)}', style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
             Text(
-              'Total: \$${calcularTotal().toStringAsFixed(2)}',
-              style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+              restanteActual < 0
+                  ? 'Presupuesto: -\$${restanteActual.abs().toStringAsFixed(2)}'
+                  : 'Presupuesto: \$${restanteActual.toStringAsFixed(2)}',
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: obtenerColorPresupuesto(restanteActual)),
             ),
             const SizedBox(height: 8),
             Row(
@@ -259,24 +257,18 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
                         builder: (_) => AlertDialog(
                           title: const Text('⚠️ Presupuesto bajo'),
                           content: Text('Solo te quedan \$${restante.toStringAsFixed(2)}'),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context),
-                              child: const Text('OK'),
-                            )
-                          ],
+                          actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK'))],
                         ),
                       );
                     } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Compra guardada')),
-                      );
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Compra guardada')));
                     }
 
                     setState(() {
                       productos.clear();
                     });
-                    _actualizarPresupuestoRestante();
+
+                    cargarPresupuesto();
                   },
                   child: const Icon(Icons.check),
                 ),
@@ -285,6 +277,18 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
           ],
         ),
       ),
+    );
+  }
+}
+
+// Pantalla de gráfica (por ahora solo texto)
+class PantallaGrafica extends StatelessWidget {
+  const PantallaGrafica({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child: Text('aca ira la gráfica', style: TextStyle(fontSize: 24)),
     );
   }
 }
