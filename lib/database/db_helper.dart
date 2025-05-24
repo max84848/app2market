@@ -19,8 +19,9 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
     );
   }
 
@@ -33,6 +34,29 @@ class DatabaseHelper {
         productos TEXT
       )
     ''');
+
+    await db.execute('''
+      CREATE TABLE presupuesto (
+        id INTEGER PRIMARY KEY,
+        cantidad REAL
+      )
+    ''');
+
+    // Insertar presupuesto inicial
+    await db.insert('presupuesto', {'id': 1, 'cantidad': 500.0}); // 💰 Presupuesto inicial
+  }
+
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await db.execute('''
+        CREATE TABLE presupuesto (
+          id INTEGER PRIMARY KEY,
+          cantidad REAL
+        )
+      ''');
+
+      await db.insert('presupuesto', {'id': 1, 'cantidad': 500.0});
+    }
   }
 
   Future<void> insertarCompra(Compra compra) async {
@@ -71,5 +95,31 @@ class DatabaseHelper {
       whereArgs: [id],
     );
   }
-}
 
+  // 🔽 Nuevo: Obtener presupuesto actual
+  Future<double> obtenerPresupuesto() async {
+    final db = await database;
+    final result = await db.query('presupuesto', where: 'id = 1');
+    if (result.isNotEmpty) {
+      return result.first['cantidad'] as double;
+    }
+    return 0.0;
+  }
+
+  // 🔄 Nuevo: Actualizar presupuesto manualmente
+  Future<void> actualizarPresupuesto(double nuevoMonto) async {
+    final db = await database;
+    await db.update(
+      'presupuesto',
+      {'cantidad': nuevoMonto},
+      where: 'id = 1',
+    );
+  }
+
+  // ➖ Nuevo: Descontar gasto del presupuesto
+  Future<void> descontarDelPresupuesto(double gasto) async {
+    final actual = await obtenerPresupuesto();
+    final nuevo = actual - gasto;
+    await actualizarPresupuesto(nuevo);
+  }
+}
