@@ -35,6 +35,8 @@ dependencies:
   provider: ^6.1.1
   flutter_slidable: ^3.0.0 # Para deslizar y borrar
   intl: ^0.18.1 # Para formatos de fecha y moneda
+  fl_chart: ^1.0.0
+  
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.

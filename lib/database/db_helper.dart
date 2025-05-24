@@ -16,7 +16,6 @@ class DatabaseHelper {
 
   Future<Database> _initDatabase() async {
     final path = join(await getDatabasesPath(), 'app2market.db');
-
     return await openDatabase(
       path,
       version: 2,
@@ -43,7 +42,7 @@ class DatabaseHelper {
     ''');
 
     // Insertar presupuesto inicial
-    await db.insert('presupuesto', {'id': 1, 'cantidad': 500.0}); // 💰 Presupuesto inicial
+    await db.insert('presupuesto', {'id': 1, 'cantidad': 500.0});
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -54,7 +53,6 @@ class DatabaseHelper {
           cantidad REAL
         )
       ''');
-
       await db.insert('presupuesto', {'id': 1, 'cantidad': 500.0});
     }
   }
@@ -96,7 +94,6 @@ class DatabaseHelper {
     );
   }
 
-  // 🔽 Nuevo: Obtener presupuesto actual
   Future<double> obtenerPresupuesto() async {
     final db = await database;
     final result = await db.query('presupuesto', where: 'id = 1');
@@ -106,7 +103,6 @@ class DatabaseHelper {
     return 0.0;
   }
 
-  // 🔄 Nuevo: Actualizar presupuesto manualmente
   Future<void> actualizarPresupuesto(double nuevoMonto) async {
     final db = await database;
     await db.update(
@@ -116,7 +112,6 @@ class DatabaseHelper {
     );
   }
 
-  // ➖ Nuevo: Descontar gasto del presupuesto
   Future<void> descontarDelPresupuesto(double gasto) async {
     final actual = await obtenerPresupuesto();
     final nuevo = actual - gasto;
