@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
-import 'models/product.dart';
 import 'database/db_helper.dart';
-import 'package:flutter_slidable/flutter_slidable.dart';
+import 'models/compra.dart';
+import '../screens/pantalla_historial.dart';
 
 void main() {
   runApp(const MyApp());
@@ -10,208 +9,174 @@ void main() {
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
+  
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Calculadora Super',
-      themeMode: ThemeMode.dark,
-      darkTheme: ThemeData.dark(useMaterial3: true),
-      theme: ThemeData.light(useMaterial3: true),
-      home: const HomePage(),
+      title: 'App2Market',
+      theme: ThemeData.dark(), // 🌙 Modo oscuro
+      home: const PantallaPrincipal(),
+      debugShowCheckedModeBanner: false,
     );
   }
 }
 
-class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+class PantallaPrincipal extends StatefulWidget {
+  const PantallaPrincipal({super.key});
+  
   @override
-  State<HomePage> createState() => _HomePageState();
+  State<PantallaPrincipal> createState() => _PantallaPrincipalState();
 }
 
-class _HomePageState extends State<HomePage> {
-  final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _priceController = TextEditingController();
+class _PantallaPrincipalState extends State<PantallaPrincipal> {
+  final List<Map<String, dynamic>> productos = [];
 
-  List<Product> products = [];
+  final TextEditingController _nombreController = TextEditingController();
+  final TextEditingController _precioController = TextEditingController();
 
-  @override
-  void initState() {
-    super.initState();
-    _refreshProducts();
+  void agregarProducto() {
+    final nombre = _nombreController.text.trim();
+    final precio = double.tryParse(_precioController.text) ?? 0.0;
+    if (nombre.isNotEmpty && precio > 0) {
+      setState(() {
+        productos.add({'nombre': nombre, 'precio': precio});
+      });
+      _nombreController.clear();
+      _precioController.clear();
+    }
   }
 
-  Future _refreshProducts() async {
-    final data = await DBHelper.getProducts();
+  void eliminarProducto(int index) {
     setState(() {
-      products = data;
+      productos.removeAt(index);
     });
   }
 
-  double get total {
-    return products.fold(0, (sum, item) => sum + item.price);
-  }
-
-  void _addOrUpdateProduct({Product? product}) {
-    if (product != null) {
-      _nameController.text = product.name;
-      _priceController.text = product.price.toString();
-    } else {
-      _nameController.clear();
-      _priceController.clear();
-    }
+  void modificarProducto(int index) {
+    final producto = productos[index];
+    _nombreController.text = producto['nombre'];
+    _precioController.text = producto['precio'].toString();
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(product == null ? 'Agregar producto' : 'Modificar producto'),
-        content: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextFormField(
-                controller: _nameController,
-                decoration: const InputDecoration(labelText: 'Nombre'),
-                validator: (value) =>
-                    value == null || value.isEmpty ? 'Ingrese nombre' : null,
-              ),
-              TextFormField(
-                controller: _priceController,
-                decoration: const InputDecoration(labelText: 'Precio'),
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                validator: (value) {
-                  if (value == null || value.isEmpty) return 'Ingrese precio';
-                  if (double.tryParse(value) == null) return 'Precio inválido';
-                  return null;
-                },
-              ),
-            ],
-          ),
+      builder: (_) => AlertDialog(
+        title: const Text('Modificar producto'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: _nombreController, decoration: const InputDecoration(labelText: 'Nombre')),
+            TextField(controller: _precioController, decoration: const InputDecoration(labelText: 'Precio')),
+          ],
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (_formKey.currentState!.validate()) {
-                final name = _nameController.text.trim();
-                final price = double.parse(_priceController.text.trim());
-                if (product == null) {
-                  await DBHelper.insertProduct(Product(name: name, price: price));
-                } else {
-                  await DBHelper.updateProduct(Product(id: product.id, name: name, price: price));
-                }
-                Navigator.pop(context);
-                _refreshProducts();
+            onPressed: () {
+              final nombre = _nombreController.text.trim();
+              final precio = double.tryParse(_precioController.text) ?? 0.0;
+              if (nombre.isNotEmpty && precio > 0) {
+                setState(() {
+                  productos[index] = {'nombre': nombre, 'precio': precio};
+                });
               }
+              Navigator.pop(context);
             },
             child: const Text('Guardar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
           ),
         ],
       ),
     );
   }
 
-  Future<void> _deleteProduct(int id) async {
-    await DBHelper.deleteProduct(id);
-    _refreshProducts();
+  double calcularTotal() {
+    return productos.fold(0.0, (sum, item) => sum + (item['precio'] as double));
   }
 
-  Future<void> _deleteAll() async {
-    await DBHelper.deleteAll();
-    _refreshProducts();
+  List<String> obtenerProductosSeleccionados() {
+    return productos.map((p) => p['nombre'] as String).toList();
+  }
+
+  void guardarCompra() async {
+    if (productos.isEmpty) return;
+    final compra = Compra(
+      fecha: DateTime.now(),
+      total: calcularTotal(),
+      productos: obtenerProductosSeleccionados(),
+    );
+    await DatabaseHelper.instance.insertarCompra(compra);
+    setState(() {
+      productos.clear();
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Compra guardada')),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final currencyFormat = NumberFormat.simpleCurrency(locale: 'es_MX');
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Calculadora Super'),
+        title: const Text('App2Market'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.delete_forever),
-            tooltip: 'Borrar todo',
+            icon: const Icon(Icons.history),
             onPressed: () {
-              showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('Confirmar'),
-                  content: const Text('¿Seguro que quieres borrar todo?'),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('Cancelar'),
-                    ),
-                    ElevatedButton(
-                      onPressed: () {
-                        _deleteAll();
-                        Navigator.pop(context);
-                      },
-                      child: const Text('Borrar'),
-                    ),
-                  ],
-                ),
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const PantallaHistorial()),
               );
             },
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _addOrUpdateProduct(),
-        child: const Icon(Icons.add),
-      ),
-      body: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(20),
-            alignment: Alignment.centerLeft,
-            child: Text(
-              'Total: ${currencyFormat.format(total)}',
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+      body: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Column(
+          children: [
+            TextField(
+              controller: _nombreController,
+              decoration: const InputDecoration(labelText: 'Producto'),
             ),
-          ),
-          Expanded(
-            child: products.isEmpty
-                ? const Center(child: Text('No hay productos'))
-                : ListView.builder(
-                    itemCount: products.length,
-                    itemBuilder: (context, index) {
-                      final prod = products[index];
-                      return Slidable(
-                        key: ValueKey(prod.id),
-                        endActionPane: ActionPane(
-                          motion: const ScrollMotion(),
-                          children: [
-                            SlidableAction(
-                              onPressed: (context) => _addOrUpdateProduct(product: prod),
-                              backgroundColor: Colors.blue,
-                              foregroundColor: Colors.white,
-                              icon: Icons.edit,
-                              label: 'Modificar',
-                            ),
-                            SlidableAction(
-                              onPressed: (context) => _deleteProduct(prod.id!),
-                              backgroundColor: Colors.red,
-                              foregroundColor: Colors.white,
-                              icon: Icons.delete,
-                              label: 'Borrar',
-                            ),
-                          ],
-                        ),
-                        child: ListTile(
-                          title: Text(prod.name),
-                          trailing: Text(currencyFormat.format(prod.price)),
-                        ),
-                      );
-                    },
-                  ),
-          ),
-        ],
+            TextField(
+              controller: _precioController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'Precio'),
+            ),
+            ElevatedButton(
+              onPressed: agregarProducto,
+              child: const Text('Agregar producto'),
+            ),
+            const SizedBox(height: 12),
+            const Text('Lista de productos:', style: TextStyle(fontSize: 16)),
+            Expanded(
+              child: ListView.builder(
+                itemCount: productos.length,
+                itemBuilder: (context, index) {
+                  final producto = productos[index];
+                  return ListTile(
+                    title: Text('${producto['nombre']} - \$${producto['precio'].toStringAsFixed(2)}'),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(icon: const Icon(Icons.edit), onPressed: () => modificarProducto(index)),
+                        IconButton(icon: const Icon(Icons.delete), onPressed: () => eliminarProducto(index)),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text('Total: \$${calcularTotal().toStringAsFixed(2)}'),
+            ElevatedButton(
+              onPressed: guardarCompra,
+              child: const Text('Guardar compra'),
+            ),
+          ],
+        ),
       ),
     );
   }

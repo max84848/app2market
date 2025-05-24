@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/compra.dart';
-import '../database/db_helper.dart';
+import '/database/db_helper.dart';
 
 class PantallaHistorial extends StatefulWidget {
   const PantallaHistorial({Key? key}) : super(key: key);
@@ -32,7 +32,7 @@ class _PantallaHistorialState extends State<PantallaHistorial> {
 
   void editar(Compra compra) {
     final controladorTotal = TextEditingController(text: compra.total.toString());
-    final controladorProductos = TextEditingController(text: compra.productos.join(','));
+    final controladorProductos = TextEditingController(text: compra.productos.join(', '));
 
     showDialog(
       context: context,
